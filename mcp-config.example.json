@@ -6,7 +6,7 @@
       "args": ["/absolute/path/to/grok_search_mcp/src/server.js"],
       "env": {
         "GROK_API_KEY": "your-grok2api-app-key",
-        "GROK_BASE_URL": "http://localhost:8000/v1",
+        "GROK_BASE_URL": "https://new.openaiapi.icu/v1",
         "GROK_TIMEOUT_MS": "120000",
         "GROK_DEEP_TIMEOUT_MS": "300000",
         "GROK_STREAM": "true"

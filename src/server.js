@@ -3,8 +3,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 // Fixed model routing — do NOT read GROK_MODEL from env to avoid stale model ids.
-const FAST_SEARCH_MODEL = "grok-4.20-fast";
-const DEEP_SEARCH_MODEL = "grok-4.20-multi-agent";
+const SEARCH_MODEL = "grok-4.20-multi-agent-console";
+const DEEP_SEARCH_MODEL = "grok-4.20-multi-agent-xhigh";
+const FACTCHECK_MODEL = "grok-4.20-multi-agent-high";
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEEP_TIMEOUT_MS = 300000;
 
@@ -18,7 +19,7 @@ function parseBoolean(value, fallback) {
 }
 
 const config = {
-  baseUrl: process.env.GROK_BASE_URL ?? "http://localhost:8000/v1",
+  baseUrl: process.env.GROK_BASE_URL ?? "https://new.openaiapi.icu/v1",
   apiKey: process.env.GROK_API_KEY,
   timeoutMs: Number.parseInt(process.env.GROK_TIMEOUT_MS ?? String(DEFAULT_TIMEOUT_MS), 10),
   deepTimeoutMs: Number.parseInt(process.env.GROK_DEEP_TIMEOUT_MS ?? String(DEEP_TIMEOUT_MS), 10),
@@ -64,7 +65,7 @@ server.registerTool(
       task: "search",
       userText: query,
       maxResults: max_results,
-      model: FAST_SEARCH_MODEL,
+      model: SEARCH_MODEL,
       timeoutMs: config.timeoutMs,
       maxAttempts: FAST_MAX_ATTEMPTS
     });
@@ -111,7 +112,7 @@ server.registerTool(
       task: "fact_check",
       userText: claim,
       maxResults: max_results,
-      model: FAST_SEARCH_MODEL,
+      model: FACTCHECK_MODEL,
       timeoutMs: config.timeoutMs,
       maxAttempts: FAST_MAX_ATTEMPTS
     });

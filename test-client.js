@@ -9,8 +9,9 @@ if (!process.env.GROK_API_KEY) {
   process.exit(1);
 }
 
-const FAST_SEARCH_MODEL = "grok-4.20-fast";
-const DEEP_SEARCH_MODEL = "grok-4.20-multi-agent";
+const SEARCH_MODEL = "grok-4.20-multi-agent-console";
+const DEEP_SEARCH_MODEL = "grok-4.20-multi-agent-xhigh";
+const FACTCHECK_MODEL = "grok-4.20-multi-agent-high";
 
 const childEnv = { ...process.env };
 // NOTE: GROK_MODEL is intentionally NOT forwarded — the server pins models
@@ -72,7 +73,7 @@ try {
     }
   }
 
-  // 1. grok_search → grok-4.20-fast
+  // 1. grok_search → grok-4.20-multi-agent-console
   const searchResult = await client.callTool({
     name: "grok_search",
     arguments: {
@@ -89,12 +90,12 @@ try {
   if (!searchText || searchText.trim().length < 20) {
     throw new Error("grok_search returned an empty or unexpectedly short result.");
   }
-  assertModelFooter(searchText, FAST_SEARCH_MODEL, "grok_search");
+  assertModelFooter(searchText, SEARCH_MODEL, "grok_search");
 
   console.log("grok_search result preview:");
   console.log(searchText.slice(0, 1000));
 
-  // 2. grok_deep_search → grok-4.20-multi-agent
+  // 2. grok_deep_search → grok-4.20-multi-agent-xhigh
   const deepResult = await client.callTool({
     name: "grok_deep_search",
     arguments: {
@@ -116,7 +117,7 @@ try {
   console.log("grok_deep_search result preview:");
   console.log(deepText.slice(0, 1000));
 
-  // 3. grok_fact_check → grok-4.20-fast
+  // 3. grok_fact_check → grok-4.20-multi-agent-high
   const factCheckResult = await client.callTool({
     name: "grok_fact_check",
     arguments: {
@@ -132,7 +133,7 @@ try {
   if (!factCheckText || factCheckText.trim().length < 20) {
     throw new Error("grok_fact_check returned an empty or unexpectedly short result.");
   }
-  assertModelFooter(factCheckText, FAST_SEARCH_MODEL, "grok_fact_check");
+  assertModelFooter(factCheckText, FACTCHECK_MODEL, "grok_fact_check");
 
   console.log("grok_fact_check result preview:");
   console.log(factCheckText.slice(0, 1000));

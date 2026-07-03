@@ -53,7 +53,7 @@ cp .env.example .env
 | Variable | Required | Default | Description |
 | :-- | :-- | :-- | :-- |
 | `GROK_API_KEY` | yes | — | `app.api_key` from your grok2api deployment |
-| `GROK_BASE_URL` | no | `http://localhost:8000/v1` | OpenAI-compatible base URL of grok2api |
+| `GROK_BASE_URL` | no | `https://new.openaiapi.icu/v1` | OpenAI-compatible base URL of the Grok gateway |
 | `GROK_TIMEOUT_MS` | no | `120000` | Per-request **idle** timeout for fast tools (`grok_search`, `grok_fact_check`). Resets on every received SSE chunk. |
 | `GROK_DEEP_TIMEOUT_MS` | no | `300000` | Per-request **idle** timeout for `grok_deep_search` |
 | `GROK_STREAM` | no | `true` | Send `stream: true` to grok2api and parse the SSE chunks. Set to `false` to use a regular non-streaming POST as a debugging fallback. |
@@ -65,9 +65,9 @@ cp .env.example .env
 >
 > Tool → model routing:
 >
-> - `grok_search` → `grok-4.20-fast`
-> - `grok_deep_search` → `grok-4.20-multi-agent`
-> - `grok_fact_check` → `grok-4.20-fast`
+> - `grok_search` → `grok-4.20-multi-agent-console`
+> - `grok_deep_search` → `grok-4.20-multi-agent-xhigh`
+> - `grok_fact_check` → `grok-4.20-multi-agent-high`
 
 ## Run as an MCP server
 
@@ -96,7 +96,7 @@ Example for Claude Code (`~/.claude.json` or project `.mcp.json`); see also
 ## Tools
 
 ### `grok_search` — everyday search
-Web search with Grok (`grok-4.20-fast`). Returns an answer with source links.
+Web search with Grok (`grok-4.20-multi-agent-console`). Returns an answer with source links.
 Use this for everyday lookups.
 
 | Field | Type | Description |
@@ -105,7 +105,7 @@ Use this for everyday lookups.
 | `max_results` | int (1-25, optional, default 20) | Preferred number of source links |
 
 ### `grok_deep_search` — broad multi-source research
-Deep, multi-agent web research with Grok (`grok-4.20-multi-agent`). Use this
+Deep, multi-agent web research with Grok (`grok-4.20-multi-agent-xhigh`). Use this
 for complex investigations, broad surveys, and cross-source verification.
 **Slower than `grok_search`** — prioritizes breadth and accuracy over speed.
 Prefer this when a single quick search wouldn't give a defensible answer.
@@ -116,7 +116,7 @@ Prefer this when a single quick search wouldn't give a defensible answer.
 | `max_results` | int (1-25, optional) | Preferred number of source links |
 
 ### `grok_fact_check` — verdict + evidence
-Fact-check a claim with Grok (`grok-4.20-fast`) and return verdict, evidence,
+Fact-check a claim with Grok (`grok-4.20-multi-agent-high`) and return verdict, evidence,
 caveats, and sources.
 
 | Field | Type | Description |
