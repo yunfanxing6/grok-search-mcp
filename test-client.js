@@ -9,9 +9,9 @@ if (!process.env.GROK_API_KEY) {
   process.exit(1);
 }
 
-const SEARCH_MODEL = "grok-4.20-multi-agent-console";
-const DEEP_SEARCH_MODEL = "grok-4.20-multi-agent-xhigh";
-const FACTCHECK_MODEL = "grok-4.20-multi-agent-high";
+const SEARCH_MODEL = "grok-chat-fast";
+const DEEP_SEARCH_MODEL = "grok-chat-fast";
+const FACTCHECK_MODEL = "grok-chat-fast";
 
 const childEnv = { ...process.env };
 // NOTE: GROK_MODEL is intentionally NOT forwarded — the server pins models
@@ -73,7 +73,7 @@ try {
     }
   }
 
-  // 1. grok_search → grok-4.20-multi-agent-console
+  // 1. grok_search → grok-chat-fast
   const searchResult = await client.callTool({
     name: "grok_search",
     arguments: {
@@ -95,11 +95,11 @@ try {
   console.log("grok_search result preview:");
   console.log(searchText.slice(0, 1000));
 
-  // 2. grok_deep_search → grok-4.20-multi-agent-xhigh
+  // 2. grok_deep_search → grok-chat-fast
   const deepResult = await client.callTool({
     name: "grok_deep_search",
     arguments: {
-      query: "Compare the major MCP server implementations published in 2025 and how they differ on transport, auth, and tooling.",
+      query: "What is the Model Context Protocol? Keep the answer short.",
       max_results: 20
     }
   }, undefined, { timeout: 320000 });
@@ -117,7 +117,7 @@ try {
   console.log("grok_deep_search result preview:");
   console.log(deepText.slice(0, 1000));
 
-  // 3. grok_fact_check → grok-4.20-multi-agent-high
+  // 3. grok_fact_check → grok-chat-fast
   const factCheckResult = await client.callTool({
     name: "grok_fact_check",
     arguments: {

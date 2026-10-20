@@ -64,9 +64,9 @@ cp .env.example .env
 >
 > 工具到模型的路由：
 >
-> - `grok_search` → `grok-4.20-fast`
-> - `grok_deep_search` → `grok-4.20-multi-agent`
-> - `grok_fact_check` → `grok-4.20-fast`
+> - `grok_search` → `grok-chat-fast`
+> - `grok_deep_search` → `grok-chat-fast`
+> - `grok_fact_check` → `grok-chat-fast`
 
 ## 作为 MCP 服务器使用
 
@@ -95,7 +95,7 @@ Claude Code 为例（`~/.claude.json` 或项目级 `.mcp.json`），也可参考
 ## 工具说明
 
 ### `grok_search` —— 日常搜索
-基于 `grok-4.20-fast` 的联网搜索，返回回答和来源链接。日常查找走这个。
+基于 `grok-chat-fast` 的联网搜索，返回回答和来源链接。日常查找走这个。
 
 | 字段 | 类型 | 说明 |
 | :-- | :-- | :-- |
@@ -103,7 +103,7 @@ Claude Code 为例（`~/.claude.json` 或项目级 `.mcp.json`），也可参考
 | `max_results` | int (1-25, 可选，默认 20) | 期望返回的来源数量 |
 
 ### `grok_deep_search` —— 广度多源研究
-基于 `grok-4.20-multi-agent` 的深度多智能体研究。用于复杂调研、广泛检索、
+基于 `grok-chat-fast` 的深度多源研究。用于复杂调研、广泛检索、
 多来源交叉验证。**比 `grok_search` 慢**，优先广度和准确性，而不是速度。
 当单次快速搜索不足以给出可信、有出处的答案时，应优先使用本工具。
 
@@ -113,14 +113,14 @@ Claude Code 为例（`~/.claude.json` 或项目级 `.mcp.json`），也可参考
 | `max_results` | int (1-25, 可选) | 期望返回的来源数量 |
 
 ### `grok_fact_check` —— 结论 + 证据
-基于 `grok-4.20-fast` 对一个声明做事实核查，返回结论、证据、注意事项和来源。
+基于 `grok-chat-fast` 对一个声明做事实核查，返回结论、证据、注意事项和来源。
 
 | 字段 | 类型 | 说明 |
 | :-- | :-- | :-- |
 | `claim` | string | 待核查的声明 |
 | `max_results` | int (1-25, 可选，默认 20) | 期望返回的来源数量 |
 
-每个工具的输出尾部都会附带一行类似 `model: grok-4.20-fast` 的脚注，方便你确认
+每个工具的输出尾部都会附带一行类似 `model: grok-chat-fast` 的脚注，方便你确认
 实际由哪个模型回答。
 
 ## 测试

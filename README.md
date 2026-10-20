@@ -65,9 +65,9 @@ cp .env.example .env
 >
 > Tool → model routing:
 >
-> - `grok_search` → `grok-4.20-multi-agent-console`
-> - `grok_deep_search` → `grok-4.20-multi-agent-xhigh`
-> - `grok_fact_check` → `grok-4.20-multi-agent-high`
+> - `grok_search` → `grok-chat-fast`
+> - `grok_deep_search` → `grok-chat-fast`
+> - `grok_fact_check` → `grok-chat-fast`
 
 ## Run as an MCP server
 
@@ -96,7 +96,7 @@ Example for Claude Code (`~/.claude.json` or project `.mcp.json`); see also
 ## Tools
 
 ### `grok_search` — everyday search
-Web search with Grok (`grok-4.20-multi-agent-console`). Returns an answer with source links.
+Web search with Grok (`grok-chat-fast`). Returns an answer with source links.
 Use this for everyday lookups.
 
 | Field | Type | Description |
@@ -105,7 +105,7 @@ Use this for everyday lookups.
 | `max_results` | int (1-25, optional, default 20) | Preferred number of source links |
 
 ### `grok_deep_search` — broad multi-source research
-Deep, multi-agent web research with Grok (`grok-4.20-multi-agent-xhigh`). Use this
+Deep web research with Grok (`grok-chat-fast`). Use this
 for complex investigations, broad surveys, and cross-source verification.
 **Slower than `grok_search`** — prioritizes breadth and accuracy over speed.
 Prefer this when a single quick search wouldn't give a defensible answer.
@@ -116,7 +116,7 @@ Prefer this when a single quick search wouldn't give a defensible answer.
 | `max_results` | int (1-25, optional) | Preferred number of source links |
 
 ### `grok_fact_check` — verdict + evidence
-Fact-check a claim with Grok (`grok-4.20-multi-agent-high`) and return verdict, evidence,
+Fact-check a claim with Grok (`grok-chat-fast`) and return verdict, evidence,
 caveats, and sources.
 
 | Field | Type | Description |
@@ -124,7 +124,7 @@ caveats, and sources.
 | `claim` | string | Claim to verify |
 | `max_results` | int (1-25, optional, default 20) | Preferred number of source links |
 
-Every tool's response ends with a footer line like `model: grok-4.20-fast` so you
+Every tool's response ends with a footer line like `model: grok-chat-fast` so you
 can see which model actually answered.
 
 ## Test

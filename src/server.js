@@ -1,11 +1,36 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { ProxyAgent, EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+
+// Proxy support: Node's native fetch does not auto-read HTTPS_PROXY.
+// Use undici's EnvHttpProxyAgent so grok2api.zizhi.xyz routing goes through Clash (127.0.0.1:10808).
+// Also set global dispatcher so any fetch without explicit dispatcher still respects env.
+try {
+  const proxyFromEnv = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || process.env.ALL_PROXY || process.env.all_proxy;
+  if (proxyFromEnv) {
+    setGlobalDispatcher(new EnvHttpProxyAgent());
+    console.error(`[grok-search] proxy enabled via ${proxyFromEnv}`);
+  } else if (process.env.GROK_BASE_URL && process.env.GROK_BASE_URL.includes("zizhi.xyz")) {
+    // Fallback: zizhi.xyz is known to require Clash proxy on this host; default to 127.0.0.1:10808 if no env set but DNS would fail.
+    // Do not throw if proxy unreachable — fetch will retry and surface error.
+    setGlobalDispatcher(new ProxyAgent("http://127.0.0.1:10808"));
+    console.error(`[grok-search] proxy fallback to http://127.0.0.1:10808 for zizhi.xyz`);
+  }
+} catch (e) {
+  console.error(`[grok-search] proxy setup failed: ${e.message}`);
+}
 
 // Fixed model routing — do NOT read GROK_MODEL from env to avoid stale model ids.
-const SEARCH_MODEL = "grok-4.20-multi-agent-console";
-const DEEP_SEARCH_MODEL = "grok-4.20-multi-agent-xhigh";
-const FACTCHECK_MODEL = "grok-4.20-multi-agent-high";
+export const SEARCH_MODEL = "grok-chat-fast";
+export const DEEP_SEARCH_MODEL = "grok-chat-fast";
+export const FACTCHECK_MODEL = "grok-chat-fast";
+// Reasoning effort per task: "auto" for quick lookups, "xhigh" for deep research.
+export const SEARCH_EFFORT = "auto";
+export const DEEP_SEARCH_EFFORT = "xhigh";
+export const FACTCHECK_EFFORT = "auto";
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEEP_TIMEOUT_MS = 300000;
 
@@ -18,7 +43,7 @@ function parseBoolean(value, fallback) {
   return fallback;
 }
 
-const config = {
+export const config = {
   baseUrl: process.env.GROK_BASE_URL ?? "https://new.openaiapi.icu/v1",
   apiKey: process.env.GROK_API_KEY,
   timeoutMs: Number.parseInt(process.env.GROK_TIMEOUT_MS ?? String(DEFAULT_TIMEOUT_MS), 10),
@@ -31,12 +56,12 @@ const server = new McpServer({
   version: "1.4.0"
 });
 
-// Per-tool retry budgets. Fast tools retry up to 3 times; deep search up to 2
-// (each attempt is already long, so we don't want to multiply the wall time).
-const FAST_MAX_ATTEMPTS = 3;
-const DEEP_MAX_ATTEMPTS = 2;
+// Per-tool retry budgets. All tools retry up to 5 times — upstream or proxy
+// failures can be transient, so keep trying.
+const FAST_MAX_ATTEMPTS = 5;
+const DEEP_MAX_ATTEMPTS = 5;
 // Backoff between attempts in ms. Length of array implicitly caps total tries.
-const BACKOFF_MS = [2000, 5000, 10000];
+const BACKOFF_MS = [2000, 5000, 10000, 15000];
 
 const searchSchema = {
   query: z.string().min(1).describe("Search query to answer with current web evidence."),
@@ -66,6 +91,7 @@ server.registerTool(
       userText: query,
       maxResults: max_results,
       model: SEARCH_MODEL,
+      effort: SEARCH_EFFORT,
       timeoutMs: config.timeoutMs,
       maxAttempts: FAST_MAX_ATTEMPTS
     });
@@ -92,6 +118,7 @@ server.registerTool(
       userText: query,
       maxResults: max_results,
       model: DEEP_SEARCH_MODEL,
+      effort: DEEP_SEARCH_EFFORT,
       timeoutMs: config.deepTimeoutMs,
       maxAttempts: DEEP_MAX_ATTEMPTS
     });
@@ -113,6 +140,7 @@ server.registerTool(
       userText: claim,
       maxResults: max_results,
       model: FACTCHECK_MODEL,
+      effort: FACTCHECK_EFFORT,
       timeoutMs: config.timeoutMs,
       maxAttempts: FAST_MAX_ATTEMPTS
     });
@@ -121,7 +149,7 @@ server.registerTool(
   }
 );
 
-async function askGrokWithRetry(params) {
+export async function askGrokWithRetry(params) {
   const { task, maxAttempts } = params;
   const label = `${task}/${params.model}`;
   const attempts = clampAttempts(maxAttempts);
@@ -168,7 +196,7 @@ function clampAttempts(n) {
   return Math.min(n, BACKOFF_MS.length + 1);
 }
 
-async function askGrokOnce({ task, userText, maxResults, model, timeoutMs }) {
+async function askGrokOnce({ task, userText, maxResults, model, effort, timeoutMs }) {
   const messages = [
     { role: "system", content: buildSystemPrompt(task, maxResults) },
     { role: "user", content: userText }
@@ -176,7 +204,7 @@ async function askGrokOnce({ task, userText, maxResults, model, timeoutMs }) {
 
   // Each attempt re-issues a fresh /chat/completions request, giving grok2api
   // a chance to pick a different upstream account on the next try.
-  const result = await callGrok(messages, { model, timeoutMs });
+  const result = await callGrok(messages, { model, effort, timeoutMs });
 
   // Some failures come back as HTTP-200 JSON content with an "overloaded"
   // string inside instead of a proper error. Detect that and force a retry.
@@ -264,21 +292,22 @@ async function callGrok(messages, options = {}) {
     throw new Error("GROK_API_KEY is required.");
   }
 
-  const model = options.model ?? FAST_SEARCH_MODEL;
+  const model = options.model ?? SEARCH_MODEL;
+  const effort = options.effort;
   const timeoutMs = options.timeoutMs ?? config.timeoutMs;
   const maxTokens = options.max_tokens;
   const stream = options.stream ?? config.useStreaming;
 
   if (stream) {
-    return callGrokStream(messages, { model, timeoutMs, maxTokens });
+    return callGrokStream(messages, { model, effort, timeoutMs, maxTokens });
   }
-  return callGrokNonStream(messages, { model, timeoutMs, maxTokens });
+  return callGrokNonStream(messages, { model, effort, timeoutMs, maxTokens });
 }
 
 // Idle-timeout-aware streaming call. Resets the timer every time we receive
 // a chunk, so the upstream gateway can take a long time as long as it keeps
 // the SSE connection warm.
-async function callGrokStream(messages, { model, timeoutMs, maxTokens }) {
+async function callGrokStream(messages, { model, effort, timeoutMs, maxTokens }) {
   const controller = new AbortController();
   let timer = null;
   const armTimer = () => {
@@ -293,6 +322,7 @@ async function callGrokStream(messages, { model, timeoutMs, maxTokens }) {
     temperature: 0.2,
     stream: true
   };
+  if (typeof effort === "string") payload.reasoning_effort = effort;
   if (typeof maxTokens === "number") payload.max_tokens = maxTokens;
 
   let response;
@@ -389,7 +419,7 @@ async function callGrokStream(messages, { model, timeoutMs, maxTokens }) {
 
 // Non-streaming fallback. Useful when GROK_STREAM=false for debugging or
 // when the upstream gateway misbehaves with SSE.
-async function callGrokNonStream(messages, { model, timeoutMs, maxTokens }) {
+async function callGrokNonStream(messages, { model, effort, timeoutMs, maxTokens }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -399,6 +429,7 @@ async function callGrokNonStream(messages, { model, timeoutMs, maxTokens }) {
     temperature: 0.2,
     stream: false
   };
+  if (typeof effort === "string") payload.reasoning_effort = effort;
   if (typeof maxTokens === "number") payload.max_tokens = maxTokens;
 
   try {
@@ -597,7 +628,20 @@ async function main() {
   await server.connect(transport);
 }
 
-main().catch((error) => {
-  console.error("Grok Search MCP server failed:", error);
-  process.exit(1);
-});
+// Only start the stdio MCP server when this file is executed directly.
+// cli.js imports the exported helpers from this module without side effects.
+function isEntryPoint() {
+  if (!process.argv[1]) return false;
+  try {
+    return fileURLToPath(import.meta.url) === realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
+  main().catch((error) => {
+    console.error("Grok Search MCP server failed:", error);
+    process.exit(1);
+  });
+}
